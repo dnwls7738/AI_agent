@@ -1,5 +1,11 @@
 import os
-os.environ["OPENAI_API_KEY"]="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"
+import json
+
+with open("api.json", "r") as f:
+	data = json.load(f)
+	
+openAI_KEY= os.environ["Openai_API"]
+
 from collections import deque
 from typing import Dict, List, Optional, Any
 
