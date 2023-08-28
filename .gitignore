@@ -1,1 +1,3 @@
-api.json
+*.json
+
+ai_agent/api.json
