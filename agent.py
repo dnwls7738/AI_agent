@@ -1,10 +1,7 @@
 import os
-import json
+import secret_key
 
-with open("api.json", "r") as f:
-	data = json.load(f)
-	
-openAI_KEY= os.environ["Openai_API"]
+os.environ["OPENAI_API_KEY"]= secret_key.Openai_API
 
 from collections import deque
 from typing import Dict, List, Optional, Any

@@ -1,3 +1,4 @@
 *.json
 
-ai_agent/api.json
+api.json
+secret_key

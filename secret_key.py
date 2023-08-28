@@ -1,0 +1,1 @@
+Openai_API="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"
