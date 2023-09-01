@@ -1,35 +1,35 @@
+import faiss
+from langchain.docstore import InMemoryDocstore
+from langchain.vectorstores import FAISS
+from langchain.chains.base import Chain
+from pydantic import BaseModel, Field
+from langchain.vectorstores.base import VectorStore
+from langchain.llms import BaseLLM
+from langchain.embeddings import OpenAIEmbeddings
+from langchain import LLMChain, OpenAI, PromptTemplate
+from typing import Dict, List, Optional, Any
+from collections import deque
 import os
 import secret_key
 
-os.environ["OPENAI_API_KEY"]= secret_key.Openai_API
+os.environ["OPENAI_API_KEY"] = secret_key.Openai_API
 
-from collections import deque
-from typing import Dict, List, Optional, Any
-
-from langchain import LLMChain, OpenAI, PromptTemplate
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.llms import BaseLLM
-from langchain.vectorstores.base import VectorStore
-from pydantic import BaseModel, Field
-from langchain.chains.base import Chain
-
-from langchain.vectorstores import FAISS
-from langchain.docstore import InMemoryDocstore
 
 # 임베딩 모델 정의
 embedding_model = OpenAIEmbeddings()
-# VectorStore를 비어 있음으로 초기화
-import faiss
 
 # 임베딩 사이즈를 1536으로
 embedding_size = 1536
 # faiss에 이 사이즈로 셋업
 index = faiss.IndexFlatL2(embedding_size)
 # 기초 작업들을 거친 후 VectorStore를 성공적으로 셋업
-vectorstore = FAISS(embedding_model.embed_query,index, InMemoryDocstore({}),{})
+vectorstore = FAISS(embedding_model.embed_query,
+                    index, InMemoryDocstore({}), {})
 
 # First LLM Chain
 # 유저 프롬트에 맞게 태스크를 생성하고 리스트에 추가하는 첫번째 체인 코드
+
+
 class TaskCreationChain(LLMChain):
     """Chain to generates tasks."""
 
@@ -58,7 +58,9 @@ class TaskCreationChain(LLMChain):
         return cls(prompt=prompt, llm=llm, verbose=verbose)
 
 # Second LLM Chain
-# 다음은 태스크 중 중요도 높은 태스크들을 먼저 실행하게끔 관리하는 두번째 체인 코드    
+# 다음은 태스크 중 중요도 높은 태스크들을 먼저 실행하게끔 관리하는 두번째 체인 코드
+
+
 class TaskPrioritizationChain(LLMChain):
     """Chain to prioritize tasks."""
 
@@ -79,9 +81,11 @@ class TaskPrioritizationChain(LLMChain):
             input_variables=["task_names", "next_task_id", "objective"],
         )
         return cls(prompt=prompt, llm=llm, verbose=verbose)
-    
+
 # Third LLM Chain
 # 이제 마지막 체인, 실제 태스크를 실행하게끔 하는 체인 코드
+
+
 class ExecutionChain(LLMChain):
     """Chain to execute tasks."""
 
@@ -100,6 +104,7 @@ class ExecutionChain(LLMChain):
         )
         return cls(prompt=prompt, llm=llm, verbose=verbose)
 
+
 def get_next_task(
     task_creation_chain: LLMChain,
     result: Dict,
@@ -117,6 +122,7 @@ def get_next_task(
     )
     new_tasks = response.split("\\n")
     return [{"task_name": task_name} for task_name in new_tasks if task_name.strip()]
+
 
 def prioritize_tasks(
     task_prioritization_chain: LLMChain,
@@ -139,8 +145,10 @@ def prioritize_tasks(
         if len(task_parts) == 2:
             task_id = task_parts[0].strip()
             task_name = task_parts[1].strip()
-            prioritized_task_list.append({"task_id": task_id, "task_name": task_name})
+            prioritized_task_list.append(
+                {"task_id": task_id, "task_name": task_name})
     return prioritized_task_list
+
 
 def _get_top_tasks(vectorstore, query: str, k: int) -> List[str]:
     """Get the top k tasks based on the query."""
@@ -150,6 +158,7 @@ def _get_top_tasks(vectorstore, query: str, k: int) -> List[str]:
     sorted_results, _ = zip(*sorted(results, key=lambda x: x[1], reverse=True))
     return [str(item.metadata["task"]) for item in sorted_results]
 
+
 def execute_task(
     vectorstore, execution_chain: LLMChain, objective: str, task: str, k: int = 5
 ) -> str:
@@ -158,10 +167,9 @@ def execute_task(
     return execution_chain.run(objective=objective, context=context, task=task)
 
 
-class BabyAGI(Chain, BaseModel, metaclass = Chain):
+class BabyAGI(Chain, BaseModel):
     """Controller model for the BabyAGI agent."""
-	
- 
+
     task_list: deque = Field(default_factory=deque)
     task_creation_chain: TaskCreationChain = Field(...)
     task_prioritization_chain: TaskPrioritizationChain = Field(...)
@@ -179,16 +187,19 @@ class BabyAGI(Chain, BaseModel, metaclass = Chain):
         self.task_list.append(task)
 
     def print_task_list(self):
-        print("\\033[95m\\033[1m" + "\\n*****TASK LIST*****\\n" + "\\033[0m\\033[0m")
+        print("\033[95m\033[1m" +
+              "\n*****TASK LIST*****\n" + "\033[0m\033[0m")
         for t in self.task_list:
             print(str(t["task_id"]) + ": " + t["task_name"])
 
     def print_next_task(self, task: Dict):
-        print("\\033[92m\\033[1m" + "\\n*****NEXT TASK*****\\n" + "\\033[0m\\033[0m")
+        print("\033[92m\033[1m" +
+              "\n*****NEXT TASK*****\n" + "\033[0m\033[0m")
         print(str(task["task_id"]) + ": " + task["task_name"])
 
     def print_task_result(self, result: str):
-        print("\\033[93m\\033[1m" + "\\n*****TASK RESULT*****\\n" + "\\033[0m\\033[0m")
+        print("\033[93m\033[1m" +
+              "\n*****TASK RESULT*****\n" + "\033[0m\033[0m")
         print(result)
 
     @property
@@ -251,7 +262,8 @@ class BabyAGI(Chain, BaseModel, metaclass = Chain):
             num_iters += 1
             if self.max_iterations is not None and num_iters == self.max_iterations:
                 print(
-                    "\\033[91m\\033[1m" + "\\n*****TASK ENDING*****\\n" + "\\033[0m\\033[0m"
+                    "\\033[91m\\033[1m" +
+                    "\\n*****TASK ENDING*****\\n" + "\\033[0m\\033[0m"
                 )
                 break
         return {}
@@ -273,7 +285,8 @@ class BabyAGI(Chain, BaseModel, metaclass = Chain):
             vectorstore=vectorstore,
             **kwargs,
         )
-    
+
+
 OBJECTIVE = "Write a weather report for Seoul today"
 
 llm = OpenAI(temperature=0)
